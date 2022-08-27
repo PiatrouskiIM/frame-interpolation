@@ -25,6 +25,7 @@ class FilmNet(Module):
         assert len(flow_convs_list) >= number_features_pyramid_levels, ""
 
         self.in_channels, self.out_channels = in_channels, out_channels
+        self.number_image_pyramid_levels = number_image_pyramid_levels
         self.number_features_pyramid_levels = number_features_pyramid_levels
         self.m = number_significant_flow_levels
         self.sequential_avg_pool2d = SequentialAvgPool2d(number_image_pyramid_levels - 1)
@@ -92,19 +93,19 @@ class FilmNet(Module):
         aligned_pyramid = pu.concatenate((warped_pyramid_x, warped_pyramid_y, flow_pyramid_yx, flow_pyramid_xy), axis=1)
         return self.pyramid_fusion_module(aligned_pyramid)
 
-    def fill_in(self, number_of_fills, full_pyramid_a, full_pyramid_b):
-        stack_and_chain = lambda levels: torch.stack(levels, dim=1).reshape(-1, *list(levels[0].size())[1:])
-        if number_of_fills <= 0:
-            return list(map(stack_and_chain, zip(full_pyramid_a, full_pyramid_b)))
+    # def fill_in(self, number_of_fills, full_pyramid_a, full_pyramid_b):
+    #     stack_and_chain = lambda levels: torch.stack(levels, dim=1).reshape(-1, *list(levels[0].size())[1:])
+    #     if number_of_fills <= 0:
+    #         return list(map(stack_and_chain, zip(full_pyramid_a, full_pyramid_b)))
+    #
+    #     c = self.run_on_features(full_pyramid_a, full_pyramid_b)
+    #     full_pyramid_c = self.extract_features_pyramid(c)
+    #
+    #     pairs = zip(self.fill_in(number_of_fills - 1, full_pyramid_a, full_pyramid_c),
+    #                 self.fill_in(number_of_fills - 1, full_pyramid_c, full_pyramid_b))
+    #     return list(map(stack_and_chain, pairs))
 
-        c = self.run_on_features(full_pyramid_a, full_pyramid_b)
-        pyramid_c = self.sequential_avg_pool2d(c)
-        feature_pyramid_c = self.feature_extractor.run_levelwise_and_align(pyramid_c)
-        full_pyramid_c = pu.concatenate((pyramid_c, feature_pyramid_c), axis=1)[::-1]
 
-        pairs = zip(self.fill_in(number_of_fills - 1, full_pyramid_a, full_pyramid_c),
-                    self.fill_in(number_of_fills - 1, full_pyramid_c, full_pyramid_b))
-        return list(map(stack_and_chain, pairs))
 
 
 # For the Vimeo-90K dataset, each mini-batch contains
