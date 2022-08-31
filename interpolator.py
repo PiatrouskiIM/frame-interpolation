@@ -41,17 +41,29 @@ class HolePatterns:
 
 
 class HolesPattern2:
-    def __int__(self, n, k):
+    def __int__(self, n, k, n_combinations_in_cache=4):
         self.n = n
         self.k = k
-        self.all_combinations = itertools.combinations(range(n), k)
-        # self.cache = _combination_to_indicator(self.n, next(self.combinations_iter))
+        self.n_combinations_in_cache = n_combinations_in_cache
+        self.combinations_iterator, self.cached_positions, self.cache = self.reset_pointer()
 
     def __getitem__(self, key):
         if isinstance(key, slice):
             start, stop = key.start // self.n, key.stop // self.n
-            _start, _stop = start % len(self.all_combinations), stop % len(self.all_combinations)
+            if start < self.cached_positions[0]:
+                self.combinations_iterator, self.cached_positions, self.cache = self.reset_pointer()
+            if stop > self.cached_positions[1]:
+                pass
+
+
+            # _start, _stop = start % len(self.combinations_iterator), stop % len(self.combinations_iterator)
             pass
+
+    def reset_pointer(self):
+        return itertools.cycle(itertools.combinations(range(self.n), self.k)), \
+               (0, self.n_combinations_in_cache), \
+               np.concatenate([_combination_to_indicator(self.n, next(self.combinations_iterator))
+                               for _ in range(self.n_combinations_in_cache)], axis=0)
 
 
 class Interpolator:
