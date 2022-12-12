@@ -3,44 +3,15 @@ import numpy as np
 import itertools
 
 
-def fill_in(film_net_model, number_of_fills, full_pyramid_a, full_pyramid_b):
-    if number_of_fills <= 0:
-        return [(full_pyramid_a, full_pyramid_b)]
-
-    c = film_net_model.run_on_features(full_pyramid_a, full_pyramid_b)
-    full_pyramid_c = film_net_model.extract_features_pyramid(c)
-
-    return fill_in(film_net_model, number_of_fills - 1, full_pyramid_a, full_pyramid_c) + \
-           fill_in(film_net_model, number_of_fills - 1, full_pyramid_c, full_pyramid_b)
-
-
 def _combination_to_indicator(n, combination):
     indicator = np.zeros(n, dtype=bool)
     indicator[np.array(combination)] = True
     return indicator
 
 
-# TODO: replace with delayed list like object
-class HolePatterns:
-    def __init__(self, n, k):
-        self.n = n
-        self.k = k
-        self.combinations_iter = itertools.cycle(itertools.combinations(range(n), k))
-        self.cache = _combination_to_indicator(self.n, next(self.combinations_iter))
-
-    def get_n_items(self, n):
-        if n <= len(self.cache):
-            out = self.cache[:n]
-            self.cache = self.cache[n:]
-            return out
-        else:
-            while n > len(self.cache):
-                self.cache = np.concatenate((self.cache, _combination_to_indicator(self.n,
-                                                                                   next(self.combinations_iter))))
-            return self.get_n_items(n)
-
-
-class HolesPattern2:
+class HolesPattern:
+    """A looped one-dimensional array obtained by concatenating over and over again all the placements of `k` ones
+    in `n` places. Zeros elsewhere."""
     def __init__(self, n, k, n_combinations_to_cache=4):
         self.n, self.k = n, k
         self._combinations_iterator, (self.start, self.stop), self.cache = self._reset_cache(n_combinations_to_cache)
@@ -83,7 +54,19 @@ class HolesPattern2:
                                for _ in range(n_combinations_in_cache)], axis=0)
 
 
+def fill_in(film_net_model, number_of_fills, full_pyramid_a, full_pyramid_b):
+    if number_of_fills <= 0:
+        return [(full_pyramid_a, full_pyramid_b)]
+
+    c = film_net_model.run_on_features(full_pyramid_a, full_pyramid_b)
+    full_pyramid_c = film_net_model.extract_features_pyramid(c)
+
+    return fill_in(film_net_model, number_of_fills - 1, full_pyramid_a, full_pyramid_c) + \
+           fill_in(film_net_model, number_of_fills - 1, full_pyramid_c, full_pyramid_b)
+
+
 class Interpolator:
+    """A wrapper for a `film_net` module that allows interpolation to a given number of frames per second."""
     def __init__(self, film_net_model, src_fps, tgt_fps):
         self.film_net_model = film_net_model
         self.src_fps, self.tgt_fps = src_fps, tgt_fps
@@ -92,23 +75,22 @@ class Interpolator:
         self.doubled_fps = 2 ** self.number_of_pure_upsamplings * src_fps
         self.number_of_unhandled_frames = tgt_fps - 2 ** self.number_of_pure_upsamplings * self.src_fps
         if self.number_of_unhandled_frames:
-            self.hole_patterns = HolesPattern2(self.doubled_fps, self.number_of_unhandled_frames)
+            self.hole_patterns = HolesPattern(self.doubled_fps, self.number_of_unhandled_frames)
         else:
             self.number_of_pure_upsamplings -= 1
-            self.hole_patterns = HolesPattern2(self.doubled_fps, self.doubled_fps)
-        self.frame_no = 0
-        self.hole_no = 0
-        self.diff = 0
+            self.hole_patterns = HolesPattern(self.doubled_fps, self.doubled_fps)
+        self.frame_no = self.hole_no = self.diff = 0
+
     def __call__(self, x, starting_frame=None):
         features = self.film_net_model.extract_features_pyramid(x)
         pyramids = fill_in(self.film_net_model,
                            number_of_fills=self.number_of_pure_upsamplings,
                            full_pyramid_a=list(map(lambda x: x[:-1], features)),
                            full_pyramid_b=list(map(lambda x: x[1:], features)))
+        del features
         if starting_frame != self.frame_no:
             self.frame_no = starting_frame
             self.hole_no += self.diff
-            # print(self.hole_patterns[self.hole_no:self.hole_no+len(pyramids)].astype(int))
         pattern = self.hole_patterns[self.hole_no:self.hole_no+len(pyramids)]
         self.diff = len(pyramids)
         frames = []
@@ -119,14 +101,12 @@ class Interpolator:
 
             frames.extend([pyramid_a[-1][:, :self.film_net_model.out_channels]] +
                           intermediate_frames)
-                          # + [pyramid_b[-1][:, :self.film_net_model.out_channels]])
-            del pyramid_a
-        # TODO: last frame is missing for now
+            del pyramid_a, pyramid_b
         return frames
 
 
 if __name__ == "__main__":
-    holes = HolesPattern2(n=5, k=3, n_combinations_to_cache=1)
+    holes = HolesPattern(n=5, k=3, n_combinations_to_cache=1)
     print(holes[1:23])
     print(holes.start, holes.stop, holes.cache.shape)
     print(holes[1:10])

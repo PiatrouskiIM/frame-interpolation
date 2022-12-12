@@ -93,20 +93,6 @@ class FilmNet(Module):
         aligned_pyramid = pu.concatenate((warped_pyramid_x, warped_pyramid_y, flow_pyramid_yx, flow_pyramid_xy), axis=1)
         return self.pyramid_fusion_module(aligned_pyramid)
 
-    # def fill_in(self, number_of_fills, full_pyramid_a, full_pyramid_b):
-    #     stack_and_chain = lambda levels: torch.stack(levels, dim=1).reshape(-1, *list(levels[0].size())[1:])
-    #     if number_of_fills <= 0:
-    #         return list(map(stack_and_chain, zip(full_pyramid_a, full_pyramid_b)))
-    #
-    #     c = self.run_on_features(full_pyramid_a, full_pyramid_b)
-    #     full_pyramid_c = self.extract_features_pyramid(c)
-    #
-    #     pairs = zip(self.fill_in(number_of_fills - 1, full_pyramid_a, full_pyramid_c),
-    #                 self.fill_in(number_of_fills - 1, full_pyramid_c, full_pyramid_b))
-    #     return list(map(stack_and_chain, pairs))
-
-
-
 
 # For the Vimeo-90K dataset, each mini-batch contains
 # 256×256 randomly cropped frame triplets in the range

@@ -15,7 +15,7 @@
 The inputs to this module are the warped input images, image features and
 flow fields, all aligned to the target frame (often midway point between the
 two original inputs). The output is the final image. FILM has no explicit
-occlusion handling -- instead using the abovementioned information this module
+occlusion handling -- instead using the above mentioned information this module
 automatically decides how to best blend the inputs together to produce content
 in areas where the pixels can only be borrowed from one of the inputs.
 
