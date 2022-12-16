@@ -33,8 +33,9 @@ class FeaturePyramidExtractor(Module):
             number_of_levels = self.max_number_of_levels
         else:
             assert number_of_levels <= self.max_number_of_levels, \
-                f'This instance of HierarchicalFeaturePyramidExtractor capable of extracting only ' \
-                f'{self.max_number_of_levels} levels.'
+                f'Unsupported number of feature levels provided. This instance of the {self.__name__} is ' \
+                f'capable of extracting up to {self.max_number_of_levels} levels, ' \
+                f'while the requested number of levels is {number_of_levels}.'
 
         feature_pyramid = []
         for convnet in self.series_of_convnets[:number_of_levels]:
@@ -57,15 +58,12 @@ class FeaturePyramidExtractor(Module):
         return list(map(cat_in_channel_dim, aligned_series_of_pyramids))
 
     def calculate_output_number_of_channels(self, number_image_pyramid_levels, number_of_levels):
-        assert number_image_pyramid_levels >= number_of_levels, f"Incompatible values of parameters. " \
-                                                                f"The number of levels in the image pyramid " \
-                                                                f" should not be less " \
-                                                                f"than the number of pyramid levels that are " \
-                                                                f"planned to be extracted from each " \
-                                                                f"level of the input pyramid." \
-                                                                f"{number_image_pyramid_levels}" \
-                                                                f"(number_image_pyramid_levels)<" \
-                                                                f"{number_of_levels}(number_of_levels)."
+        assert number_image_pyramid_levels >= number_of_levels, \
+            f"Incompatible values of parameters. The number of levels in the image pyramid should not be less " \
+            f"than the number of pyramid levels that are planned to be extracted from each level of the input " \
+            f"pyramid. " \
+            f"{number_image_pyramid_levels} (number_image_pyramid_levels)<{number_of_levels}(number_of_levels)."
+
         longest_subpyramid_channels = self.multiplayer << np.arange(number_image_pyramid_levels)
         aligned_pyramid_channels = np.zeros(number_image_pyramid_levels, dtype=np.int32)
         for i in range(number_image_pyramid_levels):

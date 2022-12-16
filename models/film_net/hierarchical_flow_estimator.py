@@ -12,25 +12,26 @@
 # ==============================================================================
 """Pytorch module for estimating optical flow by a residual flow pyramid.
 
-This approach of estimating optical flow between two images can be traced back
-to [1], but is also used by later neural optical flow computation methods such
-as SpyNet [2] and PWC-Net [3].
+This approach of estimating optical flow between two
+images can be traced back to [1], but is also used by
+later neural optical flow computation methods such as
+SpyNet [2] and PWC-Net [3].
 
-The basic idea is that the optical flow is first estimated in a coarse
-resolution, then the flow is upsampled to warp the higher resolution image and
-then a residual correction is computed and added to the estimated flow. This
-process is repeated in a pyramid on coarse to fine order to successively
-increase the resolution of both optical flow and the warped image.
+The basic idea is that the optical flow is first estimated
+in a coarse resolution, then the flow is upsampled to warp
+the higher resolution image and then a residual correction
+is computed and added to the estimated flow. This process
+is repeated in a pyramid on coarse to fine order to
+successively increase the resolution of both optical flow
+and the warped image.
 
-In here, the optical flow predictor is used as an internal component for the
-film_net frame interpolator, to warp the two input images into the inbetween,
-target frame.
+In here, the optical flow predictor is used as an internal
+component for the film_net frame interpolator, to warp the
+two input images into the inbetween, target frame.
 
 [1] F. Glazer, Hierarchical motion detection. PhD thesis, 1987.
-[2] A. Ranjan and M. J. Black, Optical Flow Estimation using a Spatial Pyramid
-    Network. 2016
-[3] D. Sun X. Yang, M-Y. Liu and J. Kautz, PWC-Net: CNNs for Optical Flow Using
-    Pyramid, Warping, and Cost Volume, 2017
+[2] A. Ranjan and M. J. Black, Optical Flow Estimation using a Spatial Pyramid Network. 2016
+[3] D. Sun X. Yang, M-Y. Liu and J. Kautz, PWC-Net: CNNs for Optical Flow Using Pyramid, Warping, and Cost Volume, 2017
 """
 
 import torch

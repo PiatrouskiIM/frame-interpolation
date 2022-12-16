@@ -12,29 +12,33 @@
 # ==============================================================================
 """The final fusion stage for the film_net frame interpolator.
 
-The inputs to this module are the warped input images, image features and
-flow fields, all aligned to the target frame (often midway point between the
-two original inputs). The output is the final image. FILM has no explicit
-occlusion handling -- instead using the above mentioned information this module
-automatically decides how to best blend the inputs together to produce content
-in areas where the pixels can only be borrowed from one of the inputs.
+The inputs to this module are the warped input images, image
+features and flow fields, all aligned to the target frame (often
+midway point between the two original inputs). The output is the
+final image. FILM has no explicit occlusion handling -- instead
+using the above mentioned information this module automatically
+decides how to best blend the inputs together to produce content
+in areas where the pixels can only be borrowed from one of the
+inputs.
 
-Similarly, this module also decides on how much to blend in each input in case
-of fractional timestep that is not at the halfway point. For example, if the two
-inputs images are at t=0 and t=1, and we were to synthesize a frame at t=0.1,
-it often makes most sense to favor the first input. However, this is not
-always the case -- in particular in occluded pixels.
+Similarly, this module also decides on how much to blend in each
+input in case of fractional timestep that is not at the halfway
+point. For example, if the two inputs images are at t=0 and t=1,
+and we were to synthesize a frame at t=0.1, it often makes most
+sense to favor the first input. However, this is not always the
+case -- in particular in occluded pixels.
+The architecture of the Fusion module follows U-net [1]
+architecture's decoder side, e.g. each pyramid level consists of
+concatenation with upsampled coarser level output, and two 3x3
+convolutions.
 
-The architecture of the Fusion module follows U-net [1] architecture's decoder
-side, e.g. each pyramid level consists of concatenation with upsampled coarser
-level output, and two 3x3 convolutions.
+The upsampling is implemented as 'resize convolution', e.g.
+nearest neighbor upsampling followed by 2x2 convolution as
+explained in [2]. The classic U-net uses max-pooling which has a
+tendency to create checkerboard artifacts.
 
-The upsampling is implemented as 'resize convolution', e.g. nearest neighbor
-upsampling followed by 2x2 convolution as explained in [2]. The classic U-net
-uses max-pooling which has a tendency to create checkerboard artifacts.
-
-[1] Ronneberger et al. U-Net: Convolutional Networks for Biomedical Image
-    Segmentation, 2015, https://arxiv.org/pdf/1505.04597.pdf
+[1] Ronneberger et al. U-Net: Convolutional Networks for Biomedical Image Segmentation, 2015,
+    https://arxiv.org/pdf/1505.04597.pdf
 [2] https://distill.pub/2016/deconv-checkerboard/
 """
 

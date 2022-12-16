@@ -99,8 +99,7 @@ class Interpolator:
             if status:
                 intermediate_frames = [self.film_net_model.run_on_features(pyramid_a, pyramid_b)]
 
-            frames.extend([pyramid_a[-1][:, :self.film_net_model.out_channels]] +
-                          intermediate_frames)
+            frames.extend([pyramid_a[-1][:, :self.film_net_model.out_channels]] + intermediate_frames)
             del pyramid_a, pyramid_b
         return frames
 

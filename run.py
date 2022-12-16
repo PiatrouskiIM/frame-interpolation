@@ -9,6 +9,7 @@ from models import film_net
 from interpolator import Interpolator
 from typing import List
 from torch import Tensor
+from utils.transforms import AssembleFromPatches, SplitIntoPatches
 
 
 floor = lambda x: int(math.floor(x))
@@ -34,6 +35,8 @@ def postprocessing(x: np.ndarray):
 
 
 torch.no_grad()
+
+
 def run_on_video(input_path,
                  output_path,
                  model,
@@ -81,7 +84,7 @@ def run_on_video(input_path,
                                      mode="constant",
                                      pad_width=((0, 0), (top_pad, bottom_pad), (left_pad, right_pad), (0, 0)),
                                      constant_values=((0, 0), (0, 0), (0, 0), (0, 0))), \
-                  lambda src: src[:, top_pad:-bottom_pad, left_pad:-right_pad]
+        lambda src: src[:, top_pad:-bottom_pad, left_pad:-right_pad]
 
     number_of_frames = buffer_size  # int(buffer_size * fps / target_fps)
     frame_count = int(math.floor(reader.get(cv2.CAP_PROP_FRAME_COUNT)))
@@ -155,12 +158,13 @@ def run_on_image_pair(first_image_path,
                                      mode="constant",
                                      pad_width=((0, 0), (top_pad, bottom_pad), (left_pad, right_pad), (0, 0)),
                                      constant_values=((0, 0), (0, 0), (0, 0), (0, 0))), \
-                  lambda src: src#[:, top_pad:-bottom_pad, left_pad:-right_pad]
+        lambda src: src  # [:, top_pad:-bottom_pad, left_pad:-right_pad]
 
-    split_of_splits = split_in_patches(preprocess(_pad(input_frames)), block_width=block_width, block_height=block_height)
+    split_of_splits = split_in_patches(preprocess(_pad(input_frames)), block_width=block_width,
+                                       block_height=block_height)
 
-    interpolator = Interpolator(model, 2, number_of_frames+2)
-    interpolator.hole_patterns = np.ones(number_of_frames+2, dtype=bool)
+    interpolator = Interpolator(model, 2, number_of_frames + 2)
+    interpolator.hole_patterns = np.ones(number_of_frames + 2, dtype=bool)
     predicted_splits_of_splits = []
     for i, splits in enumerate(split_of_splits):
         predicted_splits = []
@@ -174,11 +178,55 @@ def run_on_image_pair(first_image_path,
         predicted_splits_of_splits.append(np.concatenate(predicted_splits, axis=3))
     predicted_frames = np.concatenate(predicted_splits_of_splits, axis=2)
     for i, frame in enumerate(_crop(postprocessing(predicted_frames))):
-        frame_output_path = os.path.join(output_folder_path, str(i).rjust(4, "0")+".jpg")
+        frame_output_path = os.path.join(output_folder_path, str(i).rjust(4, "0") + ".jpg")
         cv2.imwrite(frame_output_path, frame)
 
-    frame_output_path = os.path.join(output_folder_path, str(number_of_frames+1).rjust(4, "0") + ".jpg")
-    cv2.imwrite(frame_output_path,  input_frames[-1])
+    frame_output_path = os.path.join(output_folder_path, str(number_of_frames + 1).rjust(4, "0") + ".jpg")
+    cv2.imwrite(frame_output_path, input_frames[-1])
+
+
+@torch.no_grad()
+def run(first_image_path,
+        second_image_path,
+        output_folder_path,
+        model,
+        device="cuda",
+        block_size=(256, 256),
+        number_of_frames=6,
+        max_shift_between_frames=32):
+    assert os.path.isfile(first_image_path), f"{first_image_path} not found."
+    assert os.path.isfile(second_image_path), f"{second_image_path} not found."
+
+    pathlib.Path(output_folder_path).mkdir(parents=True, exist_ok=True)
+
+    model.to(device)
+    model.eval()
+
+    image_a, image_b = cv2.imread(first_image_path), cv2.imread(second_image_path)
+    height, width = np.minimum(image_a.shape[:2], image_b.shape[:2])
+    input_frames = np.stack((image_a[:height, :width], image_b[:height, :width]), axis=0)
+
+    input_frames = preprocess(input_frames)
+
+    split = SplitIntoPatches(size=(width, height), patch_size=block_size, margin=max_shift_between_frames)
+    assemble = AssembleFromPatches(size=(width, height), patch_size=block_size, margin=max_shift_between_frames)
+
+
+    interpolator = Interpolator(model, 2, number_of_frames + 2)
+    interpolator.hole_patterns = np.ones(number_of_frames + 2, dtype=bool)
+    predicted_patches = []
+    for i, patch_pair in enumerate(split(input_frames)):
+        patch_pair_gpu = torch.Tensor(patch_pair).to(device)
+        predicted_patch = np.stack([block.cpu().detach().numpy()
+                                      for block in interpolator(patch_pair_gpu, 0)], axis=0)[:,0]
+        del patch_pair_gpu
+        predicted_patches.append(predicted_patch)
+    for i, frame in enumerate(postprocessing(assemble(np.stack(predicted_patches, axis=0)))):
+        # frame = assemble(postprocessing(pathes_from_same_frame))
+        frame_output_path = os.path.join(output_folder_path, str(i).rjust(4, "0") + ".jpg")
+        cv2.imwrite(frame_output_path, frame)
+    frame_output_path = os.path.join(output_folder_path, str(number_of_frames + 1).rjust(4, "0") + ".jpg")
+    cv2.imwrite(frame_output_path, image_b)
 
 
 if __name__ == "__main__":
@@ -192,8 +240,8 @@ if __name__ == "__main__":
 
     # run_on_video(video_path, output_path, film_net_model, desired_fps=45)
 
-    run_on_image_pair("/home/ivan/Experiments/FILM/tempo/one.png",
-                      "/home/ivan/Experiments/FILM/tempo/two.png",
-                      "/home/ivan/Experiments/FILM/tempo/out",
-                      film_net_model)#,
-                      # number_of_frames=1)
+    run("/home/ivan/Experiments/FILM/SKINDRED2/a.png",
+                      "/home/ivan/Experiments/FILM/SKINDRED2/b.png",
+                      "/home/ivan/Experiments/FILM/SKINDRED2/out",
+                      film_net_model)  # ,
+    # number_of_frames=1)
