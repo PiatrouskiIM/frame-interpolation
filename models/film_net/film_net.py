@@ -1,3 +1,4 @@
+import numpy as np
 from torch.nn import Module
 from utils import pyramid_utils as pu
 from .feature_pyramid_extractor import FeaturePyramidExtractor
@@ -104,6 +105,18 @@ class FILMNet(Module):
         return self.pyramid_fusion_module(aligned_pyramid)
 
 
+def preprocess(x: np.ndarray):
+    x = x[..., ::-1]  # (reorder color channels) BGR -> RGB
+    x = x / 255  # (range change) [0, 255] -> [0, 1]
+    return x.transpose(0, 3, 1, 2)  # (reshape) B x H x W x C -> B x C x H x W
+
+
+def postprocessing(x: np.ndarray):
+    x = x.transpose(0, 2, 3, 1)  # (reshape) B x C x H x W -> B x H x W x C
+    x = np.array(np.clip(x * 255, 0, 255) + 0.5, dtype=np.uint8)  # (range change with rounding) [0, 1] -> [0, 255]
+    return x[..., ::-1]  # (change color channels order) RGB -> BGR
+
+
 # For the Vimeo-90K dataset, each mini-batch contains 256×256 randomly cropped frame
 # triplets in the range [0, 1], with the middle being the ground-truth, for a t=0.5
 # interpolation. We use a batch size of 8 distributed over 8V100 GPUs. To combat
@@ -115,11 +128,12 @@ class FILMNet(Module):
 class FILMNet_Weights(WeightsEnum):
     Vimeo90K_V1 = Weights(
         url="https://github.com/PiatrouskiIM/film-in-pytorch/releases/download/v1.0.0/film_net.pt",
-        transforms=lambda x:x,#partial(ImageClassification, crop_size=224),
+        transforms=lambda x: x,  # partial(ImageClassification, crop_size=224),
         meta={
             # **_COMMON_META,
-            "num_params": 2542856,
-            "recipe": None,#"https://github.com/pytorch/vision/tree/main/references/classification#mobilenetv3-large--small",
+            # "num_params": 2542856,
+            "recipe": None,
+            # "https://github.com/pytorch/vision/tree/main/references/classification#mobilenetv3-large--small",
             "_metrics": {
                 "Vimeo-90K": {
                     "PSNR": 35.87,
@@ -132,6 +146,14 @@ class FILMNet_Weights(WeightsEnum):
         },
     )
     DEFAULT = Vimeo90K_V1
+
+    @staticmethod
+    def transforms():
+        return preprocess
+
+    @staticmethod
+    def postprocessing():
+        return postprocessing
 
 
 def film_net(*, weights=None, progress=True, **kwargs):
