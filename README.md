@@ -1,21 +1,82 @@
-# film-in-pytorch
-Implementation of FILM: ... in pytorch. Training code is missin
-
-`
-ffmpeg -i in.mp4 -filter:v "crop=out_w:out_h:x:y" out.mp4
-`
-
-Where the options are as follows:
-
-out_w is the width of the output rectangle
-out_h is the height of the output rectangle
-x and y specify the top left corner of the output rectangle (coordinates start at (0,0) in the top left corner of the input)
+# frame-interpolation
+Unofficial Pytorch reimplementation of **FILM: Frame Interpolation for Large Motion**.
+(Tensorflow 2 implementation can be found here, https://github.com/google-research/frame-interpolation.)
 
 
-You can refer to the input image size with in_w and in_h as shown in this first example. The output width and height can also be used with out_w and out_h.
+## Installation
+Install PyTorch following [official instructions](https://pytorch.org/get-started/locally/), e. g.
+```commandline
+conda install pytorch torchvision torchaudio pytorch-cuda=11.6 -c pytorch -c nvidia
+```
 
-https://video.stackexchange.com/questions/4563/how-can-i-crop-a-video-with-ffmpeg
+Install pip dependencies, 
+```commandline
+pip install -r requirements.txt
+```
+
+## Usage
+
+```commandline
+INPUT=input.mp4 &&\
+OUTPUT=output.mp4 &&\
+python run.py -i ${INPUT} -o ${OUTPUT}
+```
+
+## Useful ffmpeg commands for video processing
+
+**Cropping.**
+
+```commandline
+INPUT=input.mp4 &&\
+OUTPUT=output.mp4 &&\
+LEFT=10 && TOP=0 && WIDTH=256 && HEIGHT=256
+ffmpeg -i ${INPUT} -filter:v "crop=${WIDTH}:${HEIGHT}:${LEFT}:${TOP}" ${OUTPUT}
+```
+
+(see, https://ffmpeg.org/ffmpeg-filters.html#toc-crop)
+
+**Changing framerate.**
+
+```commandline
+INPUT=input.mp4 &&\
+OUTPUT=output.mp4 &&\
+FPS=30 &&\
+ffmpeg -i ${INPUT} -filter:v fps=${FPS} ${OUTPUT}
+```
+
+(see, https://ffmpeg.org/ffmpeg-filters.html#toc-fps-1, or https://trac.ffmpeg.org/wiki/ChangingFrameRate)
 
 
+**Scaling.**
 
-    # # ffmpeg -i "${INPUT_VIDEO}" -vf "select='gte(scene,0)',metadata=print:file=scores.txt" -an -f null -
+```commandline
+INPUT=input.mp4 &&\
+OUTPUT=output.mp4 &&\
+W=416 &&\
+H=416 &&\
+ffmpeg -i ${INPUT} -vf scale=${W}:${H} ${OUTPUT}
+```
+
+(see, https://ffmpeg.org/ffmpeg-filters.html#toc-Scaling.)
+
+
+**Scene into scenes.**
+
+The following command will create a file where for each frame of the specified video a characteristic is calculated, 
+how much this frame differs from the previous one.
+
+```commandline
+INPUT=input.mp4 &&\
+ffmpeg -i ${INPUT} -vf "select='gte(scene,0)',metadata=print:file=scores.txt" -an -f null -
+```
+
+**Cut fragment from video.**
+
+
+```commandline
+INPUT=input.mp4 &&\
+OUTPUT=output.mp4 &&\
+START=00:05:20 &&\
+DURATION=00:10:00 &&\
+ffmpeg -i ${INPUT} -ss ${START} -t ${DURATION} -c:v copy -c:a copy ${OUTPUT}.
+```
