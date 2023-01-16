@@ -60,7 +60,7 @@ ffmpeg -i ${INPUT} -vf scale=${W}:${H} ${OUTPUT}
 (see, https://ffmpeg.org/ffmpeg-filters.html#toc-Scaling.)
 
 
-**Scene into scenes.**
+**Split into scenes.**
 
 The following command will create a file where for each frame of the specified video a characteristic is calculated, 
 how much this frame differs from the previous one.
@@ -79,4 +79,12 @@ OUTPUT=output.mp4 &&\
 START=00:05:20 &&\
 DURATION=00:10:00 &&\
 ffmpeg -i ${INPUT} -ss ${START} -t ${DURATION} -c:v copy -c:a copy ${OUTPUT}.
+```
+
+**Copy audio from one video to another.**
+```commandline
+INPUTV=input.mp4 &&\
+INPUTA=input_with_audio.mp4 &&\
+OUTPUT=output.mp4 &&\
+ffmpeg -i ${INPUTV} -i ${INPUTA} -c copy -map 0:v:0 -map 1:a:0 -shortest ${OUTPUT}
 ```
